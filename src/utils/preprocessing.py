@@ -1,7 +1,50 @@
+import os
 import pandas as pd
 import numpy as np
+from typing import Optional
 from sklearn.datasets import load_breast_cancer
+from sklearn.preprocessing import StandardScaler
 from ucimlrepo import fetch_ucirepo
+
+def get_project_root():
+    """
+    Get the project root directory using __file__.
+    This works reliably regardless of where the script is run from.
+
+    Returns:
+        str: Absolute path to the project root directory.
+    """
+    current = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    if os.path.exists(os.path.join(current, "src")):
+        return current
+
+    return os.getcwd()
+
+PROJECT_ROOT = get_project_root()
+
+def standardize(X_train: np.ndarray, X_test: np.ndarray) -> tuple:
+    scaler= StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled =scaler.transform(X_test)
+    return X_train_scaled,X_test_scaled
+
+
+def train_test_split(
+    X: np.ndarray,
+    y: np.ndarray,
+    test_size: float = 0.2,
+    random_state: Optional[int] = None,
+) -> tuple:
+    rng = np.random.RandomState(random_state)
+    n = X.shape[0]
+    indices = np.arange(n)
+    rng.shuffle(indices)
+    split = int(n * (1 - test_size))
+    train_idx = indices[:split]
+    test_idx = indices[split:]
+    return X[train_idx], X[test_idx], y[train_idx], y[test_idx]
+
 
 
 def optimize_dataframe_memory(df, exclude_cols=None, verbose=True):
@@ -22,17 +65,14 @@ def optimize_dataframe_memory(df, exclude_cols=None, verbose=True):
             try:
                 df.loc[:, col] = pd.to_numeric(df[col])
             except (ValueError, TypeError):
-                continue  # Skip if can't convert to numeric
+                continue
 
         if not pd.api.types.is_numeric_dtype(df[col]):
             continue
 
-        # Check current dtype
         current_dtype = df[col].dtype
 
-        # Only attempt downcasting if there's a potential benefit
         if pd.api.types.is_integer_dtype(df[col]):
-            # Check if we can downcast
             min_val = df[col].min()
             max_val = df[col].max()
 
@@ -51,7 +91,6 @@ def optimize_dataframe_memory(df, exclude_cols=None, verbose=True):
                 elif min_val >= -2147483648 and max_val <= 2147483647 and current_dtype != np.int32:
                     df.loc[:, col] = pd.to_numeric(df[col], downcast='integer')
         elif pd.api.types.is_float_dtype(df[col]):
-            # Only downcast if it's float64
             if current_dtype == np.float64:
                 df.loc[:, col] = pd.to_numeric(df[col], downcast='float')
 
@@ -71,21 +110,11 @@ def optimize_dataframe_memory(df, exclude_cols=None, verbose=True):
 def optimize_numpy_array(arr, dtype=None, verbose=True):
     """
     Optimize memory usage of a numpy array by downcasting.
-
-    Args:
-        arr (ndarray): Input numpy array
-        dtype (type): Target dtype (if None, auto-detect)
-        verbose (bool): If True, print memory usage before/after
-
-    Returns:
-        ndarray: Optimized array
     """
     mem_before = arr.nbytes / 1024**2
 
     if dtype is None:
-        # Auto-detect optimal dtype
         if np.issubdtype(arr.dtype, np.integer):
-            # Find minimum integer type that can hold all values
             min_val = arr.min()
             max_val = arr.max()
             if min_val >= 0:
@@ -107,7 +136,7 @@ def optimize_numpy_array(arr, dtype=None, verbose=True):
                 else:
                     dtype = np.int64
         elif np.issubdtype(arr.dtype, np.floating):
-            dtype = np.float32  # float64 → float32 usually sufficient
+            dtype = np.float32
 
     arr_optimized = arr.astype(dtype)
     mem_after = arr_optimized.nbytes / 1024**2
@@ -122,13 +151,6 @@ def optimize_numpy_array(arr, dtype=None, verbose=True):
 def optimize_series_memory(series, verbose=True):
     """
     Optimize memory usage of a pandas Series.
-
-    Args:
-        series (Series): Input Series
-        verbose (bool): If True, print memory usage before/after
-
-    Returns:
-        Series: Optimized Series
     """
     mem_before = series.memory_usage(deep=True) / 1024**2
 
@@ -147,171 +169,179 @@ def optimize_series_memory(series, verbose=True):
     return series
 
 
+def _load_parquet_or_fetch(parquet_filename, fetch_func, optimize_memory=True, verbose=True):
+    """
+    Helper function: try to load from Parquet in data/ folder, otherwise fetch, optimize, and save.
+    """
+    # Use project root data folder
+    data_dir = os.path.join(PROJECT_ROOT, "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    filepath = os.path.join(data_dir, parquet_filename)
+
+    if os.path.exists(filepath):
+        if verbose:
+            print(f"Loaded from Parquet: {filepath}")
+        df = pd.read_parquet(filepath)
+        y = df.iloc[:, -1]
+        X = df.iloc[:, :-1]
+        return X, y
+    else:
+        if verbose:
+            print(f"{filepath} not found locally. Downloading...")
+
+        X, y = fetch_func()
+
+        if optimize_memory:
+            if verbose:
+                print("Optimizing memory before saving...")
+            X = optimize_dataframe_memory(X, verbose=verbose)
+            y = optimize_series_memory(y, verbose=verbose)
+
+        if verbose:
+            print(f"Saving to {filepath}...")
+
+        df = pd.concat([X, y], axis=1)
+        df.to_parquet(filepath, index=True)
+
+        if verbose:
+            print(f"Saved to {filepath}")
+
+        return X, y
+
+
 def load_breast_cancer_data(optimize_memory=True, verbose=True):
     """
     Load the Breast Cancer Wisconsin dataset.
-
-    Args:
-        optimize_memory (bool): If True, optimize memory usage
-        verbose (bool): If True, print dataset info and memory stats
-
-    Returns:
-        X_bc (DataFrame): Features (30 columns)
-        y_bc (Series): Target (0 = malignant, 1 = benign)
-        df_bc (DataFrame): Combined features and target
+    First tries to load from data/breast_cancer.parquet, otherwise downloads.
     """
-    X_bc, y_bc = load_breast_cancer(return_X_y=True, as_frame=True)
+    def _fetch_breast_cancer():
+        X, y = load_breast_cancer(return_X_y=True, as_frame=True)
+        return X, y
 
-    if optimize_memory:
-        X_bc = optimize_dataframe_memory(X_bc, verbose=verbose)
-        y_bc = optimize_series_memory(y_bc, verbose=verbose)
+    X_bc, y_bc = _load_parquet_or_fetch(
+        "breast_cancer.parquet",
+        _fetch_breast_cancer,
+        optimize_memory=optimize_memory,
+        verbose=verbose
+    )
 
     df_bc = pd.concat([X_bc, y_bc], axis=1)
-
     return X_bc, y_bc, df_bc
 
 
 def load_adult_income_data(drop_categorical=True, optimize_memory=True, verbose=True):
     """
     Load the Adult Income dataset from UCI.
-
-    Args:
-        drop_categorical (bool): If True, drops categorical columns,
-                                 keeping only numeric features.
-        optimize_memory (bool): If True, optimize memory usage
-        verbose (bool): If True, print dataset info and memory stats
-
-    Returns:
-        X_adult (DataFrame): Features
-        y_adult (DataFrame): Target (income)
-        df_adult (DataFrame): Combined features and target
+    First tries to load from data/adult_income.parquet, otherwise downloads.
     """
-    adult = fetch_ucirepo(id=2)
-    X_adult = adult.data.features
-    y_adult = adult.data.targets
+    def _fetch_adult_income():
+        adult = fetch_ucirepo(id=2)
+        X = adult.data.features
+        y = adult.data.targets
 
-    # Clean target (remove dots from labels)
-    y_adult.loc[:, 'income'] = y_adult['income'].str.replace('.', '', regex=False)
+        # Ensure y is a Series (not a DataFrame)
+        if isinstance(y, pd.DataFrame):
+            y = y.iloc[:, 0]  # Extract the first (and only) column as Series
 
-    if drop_categorical:
-        cols_to_drop = [
-            'workclass', 'education', 'marital-status',
-            'occupation', 'relationship', 'race', 'sex',
-            'native-country'
-        ]
-        X_adult = X_adult.drop(columns=cols_to_drop)
+        # Remove dots from income values (e.g., '<=50K.' -> '<=50K')
+        y = y.str.replace('.', '', regex=False)
 
-    if optimize_memory:
-        X_adult = optimize_dataframe_memory(X_adult, verbose=verbose)
-        # y_adult is categorical, skip optimization
+        if drop_categorical:
+            cols_to_drop = [
+                'workclass', 'education', 'marital-status',
+                'occupation', 'relationship', 'race', 'sex',
+                'native-country'
+            ]
+            X = X.drop(columns=cols_to_drop)
+
+        return X, y
+
+    X_adult, y_adult = _load_parquet_or_fetch(
+        "adult_income.parquet",
+        _fetch_adult_income,
+        optimize_memory=optimize_memory,
+        verbose=verbose
+    )
 
     df_adult = pd.concat([X_adult, y_adult], axis=1)
-
     return X_adult, y_adult, df_adult
 
 
 def load_covertype_data(drop_categorical=True, optimize_memory=True, verbose=True):
     """
     Load the Covertype dataset from UCI.
-
-    Args:
-        drop_categorical (bool): If True, drops Wilderness_Area and Soil_Type
-                                 categorical indicator columns.
-        optimize_memory (bool): If True, optimize memory usage
-        verbose (bool): If True, print dataset info and memory stats
-
-    Returns:
-        X_cover (DataFrame): Features
-        y_cover (DataFrame): Target (Cover_Type: 1-7)
-        df_cover (DataFrame): Combined features and target
+    First tries to load from data/covertype.parquet, otherwise downloads.
     """
-    covertype = fetch_ucirepo(id=31)
-    X_cover = covertype.data.features
-    y_cover = covertype.data.targets
+    def _fetch_covertype():
+        covertype = fetch_ucirepo(id=31)
+        X = covertype.data.features
+        y = covertype.data.targets
 
-    if drop_categorical:
-        X_cover = X_cover[X_cover.columns.drop(
-            list(X_cover.filter(regex='Wilderness_Area'))
-        )]
-        X_cover = X_cover[X_cover.columns.drop(
-            list(X_cover.filter(regex='Soil_Type'))
-        )]
+        # Ensure y is a Series (not a DataFrame)
+        if isinstance(y, pd.DataFrame):
+            y = y.iloc[:, 0]  # Extract the first (and only) column as Series
 
-    if optimize_memory:
-        X_cover = optimize_dataframe_memory(X_cover, verbose=verbose)
-        y_cover = optimize_dataframe_memory(y_cover, verbose=verbose)
+        if drop_categorical:
+            X = X[X.columns.drop(list(X.filter(regex='Wilderness_Area')))]
+            X = X[X.columns.drop(list(X.filter(regex='Soil_Type')))]
+
+        return X, y
+
+    X_cover, y_cover = _load_parquet_or_fetch(
+        "covertype.parquet",
+        _fetch_covertype,
+        optimize_memory=optimize_memory,
+        verbose=verbose
+    )
 
     df_cover = pd.concat([X_cover, y_cover], axis=1)
-
     return X_cover, y_cover, df_cover
 
 
 def load_mnist_data(optimize_memory=True, verbose=True, return_numpy=False):
     """
-    Load the MNIST dataset with multiple fallback options.
+    Load the MNIST dataset.
+    First tries to load from data/mnist.parquet, otherwise downloads from OpenML.
     """
-    X, y = None, None
-
-    # Try 4: Local file
-    if X is None:
-        try:
-            import pickle
-            with open('mnist_data.pkl', 'rb') as f:
-                X, y = pickle.load(f)
-            if verbose:
-                print("Loaded MNIST from local file")
-        except FileNotFoundError:
-            pass
-        except ModuleNotFoundError:
-            pass
-
-    # Try 1: OpenML (most reliable)
-    if X is None:
-        try:
-            from sklearn.datasets import fetch_openml
-            X, y = fetch_openml(
-                'mnist_784',
-                version=1,
-                return_X_y=True,
-                as_frame=False,
-                parser='pandas',
-                data_home='./mnist_cache',
-                n_retries=5
-            )
-            y = y.astype(int)
-            if verbose:
-                print("Loaded MNIST from OpenML")
-        except Exception as e:
-            if verbose:
-                print(f"OpenML failed: {e}")
-
-    # If all fail, raise error
-    if X is None:
-        raise ImportError(
-            "Could not load MNIST dataset. Please install one of:\n"
-            "  pip install tensorflow\n"
-            "  pip install torch torchvision\n"
-            "  pip install scikit-learn\n"
-            "Or download manually from: https://www.openml.org/d/554"
+    def _fetch_mnist():
+        from sklearn.datasets import fetch_openml
+        X, y = fetch_openml(
+            'mnist_784',
+            version=1,
+            return_X_y=True,
+            as_frame=False,
+            parser='pandas',
+            data_home='./mnist_cache',
+            n_retries=5
         )
+        # Ensure y is a Series with proper dtype
+        if isinstance(y, pd.DataFrame):
+            y = y.iloc[:, 0]
+        y = y.astype(int)
 
-    # Optimize memory if requested
-    if optimize_memory:
-        X = optimize_numpy_array(X, verbose=verbose)
-        y = optimize_numpy_array(y, verbose=verbose)
+        df_temp = pd.DataFrame(
+            X,
+            columns=[f'pixel_{i}' for i in range(X.shape[1])]
+        )
+        df_temp['label'] = y
 
-    # Create DataFrame
-    df_mnist = pd.DataFrame(
-        X,
-        columns=[f'pixel_{i}' for i in range(X.shape[1])]
+        X_df = df_temp.drop('label', axis=1)
+        y_series = df_temp['label']
+
+        return X_df, y_series
+
+    X_mnist, y_mnist = _load_parquet_or_fetch(
+        "mnist.parquet",
+        _fetch_mnist,
+        optimize_memory=optimize_memory,
+        verbose=verbose
     )
-    df_mnist['label'] = y
 
-    if not return_numpy:
-        X_mnist = df_mnist.drop('label', axis=1)
-        y_mnist = df_mnist['label']
-    else:
-        X_mnist = X
-        y_mnist = y
+    df_mnist = pd.concat([X_mnist, y_mnist], axis=1)
+
+    if return_numpy:
+        X_mnist = X_mnist.values
+        y_mnist = y_mnist.values
 
     return X_mnist, y_mnist, df_mnist
