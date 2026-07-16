@@ -10,6 +10,10 @@ __pycache__/
 # C extensions
 *.so
 
+notebooks/mnist_cache/
+
+*.csv
+
 # Distribution / packaging
 .Python
 build/
@@ -174,3 +178,40 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+
+
+
+
+# Add to .gitignore
+
+# Output files from notebooks (CSVs, PNGs, PDFs)
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache directories
+.cache/
+*.cache
+
+# Log files
+*.log
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Data files (if any)
+*.parquet
+*.feather
+*.pkl
+*.pickle
+*.h5
+*.hdf5

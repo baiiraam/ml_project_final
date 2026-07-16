@@ -164,19 +164,6 @@
 #         return self._find_leaf_index(node.right, row, id_prefix + "R")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 import time
 import numpy as np
 
@@ -203,6 +190,7 @@ class RegressionTreeScale:
     """
     Highly optimized Regression Tree with vectorized MSE split-finding.
     """
+
     def __init__(
         self, max_depth=3, min_samples_split=2, max_features=None, random_state=None
     ):
@@ -277,7 +265,9 @@ class RegressionTreeScale:
         parent_sum_sq = np.sum(y**2)
 
         # Protect parent MSE from micro floating-point variances below zero
-        parent_mse = max(0.0, (parent_sum_sq / n_samples) - (parent_sum / n_samples) ** 2)
+        parent_mse = max(
+            0.0, (parent_sum_sq / n_samples) - (parent_sum / n_samples) ** 2
+        )
 
         # Feature Sub-sampling (Column Subsampling)
         n_sub_features = self._get_max_features()

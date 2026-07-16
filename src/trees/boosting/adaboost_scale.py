@@ -76,9 +76,7 @@ class AdaBoostClassifier:
         self._cache_key: Optional[str] = None
 
     def fit(
-        self,
-        X: np.ndarray,
-        y: np.ndarray,
+        self, X: np.ndarray, y: np.ndarray, sample_weight: Optional[np.ndarray] = None
     ) -> AdaBoostClassifier:
         """
         Fit AdaBoost classifier to training data.
@@ -99,9 +97,16 @@ class AdaBoostClassifier:
 
         n_samples = X.shape[0]
 
-        # Initialize sample weights uniformly
-        sample_weights = np.full(n_samples, 1.0 / n_samples, dtype=np.float64)
-
+        # Initialize sample weights
+        if sample_weight is None:
+            sample_weights = np.full(n_samples, 1.0 / n_samples, dtype=np.float64)
+        else:
+            sample_weights = np.asarray(sample_weight, dtype=np.float64)
+            if sample_weights.shape != (n_samples,):
+                raise ValueError("sample_weight must have shape (n_samples,)")
+            if np.any(sample_weights < 0):
+                raise ValueError("sample_weight must be non-negative")
+            sample_weights = sample_weights / sample_weights.sum()
         # Reset estimators
         self.estimators_ = []
         self.estimator_weights_ = np.array([], dtype=np.float64)

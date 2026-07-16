@@ -16,6 +16,21 @@ class FastBinaryGradientBoosting:
         reg_lambda=1.0,
         random_state=None,
     ):
+        if n_estimators <= 0:
+            raise ValueError("n_estimators must be positive")
+        if not (
+            0.0 < learning_rate <= 1.0
+        ):  # adjust range if your tests expect different bounds
+            raise ValueError("learning_rate must be in (0, 1]")
+        if max_depth < 1:
+            raise ValueError("max_depth must be at least 1")
+        if min_samples_split < 2:
+            raise ValueError("min_samples_split must be at least 2")
+        if not (0.0 < subsample <= 1.0):
+            raise ValueError("subsample must be in (0, 1]")
+        if reg_lambda < 0.0:
+            raise ValueError("reg_lambda must be non-negative")
+
         self.n_estimators = n_estimators
         self.learning_rate = learning_rate
         self.max_depth = max_depth
@@ -30,6 +45,14 @@ class FastBinaryGradientBoosting:
         self.rng = np.random.default_rng(random_state)
 
     def fit(self, X, y):
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+
+        if X.size == 0 or y.size == 0:
+            raise ValueError("X and y must not be empty")
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y must contain the same number of samples")
+
         n_samples, n_features = X.shape
         y = np.array(y, dtype=np.float64)
 
@@ -79,7 +102,7 @@ class FastBinaryGradientBoosting:
             for leaf in unique_leaves:
                 mask = leaf_ids == leaf
                 num = np.sum(residuals[mask])
-                p_clipped = np.clip(p[mask], 1e-15, 1.0-1e-15)
+                p_clipped = np.clip(p[mask], 1e-15, 1.0 - 1e-15)
                 den = np.sum(p_clipped * (1.0 - p_clipped)) + self.reg_lambda
 
                 # Leaf adjustment value
@@ -107,6 +130,9 @@ class FastBinaryGradientBoosting:
 
     def decision_function(self, X):
         """Returns raw margin scale predictions F(X)."""
+        if self.raw_initial_val_ is None:
+            raise ValueError("Model has not been fitted yet")
+
         F = np.full(X.shape[0], self.raw_initial_val_)
         for tree in self.trees:
             F += self.learning_rate * tree.predict(X)
@@ -114,6 +140,9 @@ class FastBinaryGradientBoosting:
 
     def predict_proba(self, X):
         """Vectorized probability estimation."""
+        if self.raw_initial_val_ is None:
+            raise ValueError("Model has not been fitted yet")
+
         F = self.decision_function(X)
         p = 1.0 / (1.0 + np.exp(-F))
         return np.vstack([1.0 - p, p]).T
@@ -147,3 +176,9 @@ class FastBinaryGradientBoosting:
             F += self.learning_rate * tree.predict(X)
             p = 1.0 / (1.0 + np.exp(-np.clip(F, -500, 500)))
             yield (p >= 0.5).astype(int)
+
+    @property
+    def estimator_weights(self):
+        if not self.trees:
+            raise ValueError("Model has not been fitted yet.")
+        return np.full(len(self.trees), self.learning_rate)
