@@ -1,0 +1,542 @@
+% =====================================================================
+% AI Academy -- National AI Center
+% Machine Learning -- Team Contribution Report
+% =====================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% ===== CONFIGURATION =================================================
+
+\newcommand{\coursename}{Machine Learning}
+\newcommand{\institution}{AI Academy, National AI Center}
+\newcommand{\semester}{Spring 2026}
+\newcommand{\projecttitle}{Ensemble Methods: Boosting vs.\ Bagging}
+\newcommand{\reporttitle}{Team Contribution Report}
+\newcommand{\teamname}{Madagascar Penguins}
+\newcommand{\teammembers}{Murad, Bayram, Ferman, Mahmud}
+\newcommand{\releasedate}{June 29, 2026}
+\newcommand{\duedate}{July 17, 2026 at 23:59 (UTC+4)}
+\newcommand{\version}{v1.0-final}
+
+% ===== PACKAGES ======================================================
+
+\usepackage[
+  a4paper,
+  top=2.2cm,
+  bottom=2.2cm,
+  left=2.2cm,
+  right=2.2cm,
+  headheight=15pt
+]{geometry}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[final,protrusion=true,expansion=false]{microtype}
+
+\usepackage{amsmath,amssymb}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\usepackage[parfill]{parskip}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{hyperref}
+\usepackage{float}
+
+\emergencystretch=3em
+\hbadness=10000
+\hfuzz=2pt
+
+% ===== PDF METADATA ==================================================
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=NavyBlue,
+  urlcolor=NavyBlue,
+  citecolor=NavyBlue,
+  pdftitle={\coursename\ -- \reporttitle},
+  pdfauthor={\teamname}
+}
+
+% ===== COLORS ========================================================
+
+\definecolor{accent}{HTML}{0B3D91}
+\definecolor{accentdark}{HTML}{072D6B}
+\definecolor{accent2}{HTML}{8B0000}
+\definecolor{soft}{HTML}{F2F4F8}
+\definecolor{lightblue}{HTML}{EAF1FB}
+\definecolor{codegreen}{rgb}{0,0.55,0}
+\definecolor{codegray}{rgb}{0.4,0.4,0.4}
+\definecolor{codepurple}{rgb}{0.55,0,0.78}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+
+% ===== SECTION STYLING ===============================================
+
+\titleformat{\section}
+  {\Large\bfseries\color{accent}}
+  {}
+  {0pt}
+  {}
+
+\titlespacing*{\section}{0pt}{1.2em}{0.5em}
+
+% ===== CUSTOM BOXES ==================================================
+
+\newtcolorbox{infobox}[1][]{
+  colback=soft,
+  colframe=accent,
+  boxrule=0.6pt,
+  arc=2pt,
+  left=8pt,
+  right=8pt,
+  top=6pt,
+  bottom=6pt,
+  fonttitle=\bfseries\color{white},
+  colbacktitle=accent,
+  title=#1
+}
+
+\newtcolorbox{teaminfo}{
+  enhanced,
+  colback=lightblue,
+  colframe=accent,
+  boxrule=0.9pt,
+  arc=3pt,
+  left=12pt,
+  right=12pt,
+  top=10pt,
+  bottom=10pt,
+  width=0.88\textwidth
+}
+
+% ===== CODE LISTING STYLE ============================================
+
+\lstdefinestyle{python}{
+  language=Python,
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{accent},
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple},
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  keepspaces=true,
+  numbers=left,
+  numbersep=6pt,
+  tabsize=2,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{black!30}
+}
+
+% ===== TABLE SETTINGS ================================================
+
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{6pt}
+
+% ===== HEADER AND FOOTER =============================================
+
+\pagestyle{fancy}
+\fancyhf{}
+
+\fancyhead[L]{
+  \small\textit{\coursename\ -- \reporttitle}
+}
+
+\fancyhead[R]{
+  \small\textit{\semester}
+}
+
+\fancyfoot[L]{
+  \small\textit{\institution}
+}
+
+\fancyfoot[R]{
+  \small Page \thepage\ of \pageref{LastPage}
+}
+
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% =====================================================================
+% DOCUMENT
+% =====================================================================
+
+\begin{document}
+
+% No titlepage, newpage, clearpage, or empty page is used here.
+
+% ===== TITLE SECTION =================================================
+
+\begin{center}
+
+{\Large\bfseries\color{accent} \institution}
+
+\vspace{0.2cm}
+
+{\large\bfseries \coursename}
+
+\vspace{0.45cm}
+
+{\Huge\bfseries\color{accent} \reporttitle}
+
+\vspace{0.25cm}
+
+{\LARGE\bfseries \projecttitle}
+
+\vspace{0.55cm}
+
+\begin{teaminfo}
+\centering
+
+{\large\textbf{Team Name}}
+
+\vspace{0.1cm}
+
+{\LARGE\bfseries\color{accentdark} \teamname}
+
+\vspace{0.4cm}
+
+{\large\textbf{Team Members}}
+
+\vspace{0.1cm}
+
+{\large \teammembers}
+
+\end{teaminfo}
+
+\vspace{0.4cm}
+
+\begin{tabular}{>{\bfseries}l l}
+Semester: & \semester \\
+Version: & \version \\
+Release Date: & \releasedate \\
+Due Date: & \duedate
+\end{tabular}
+
+\end{center}
+
+\vspace{0.45cm}
+
+\begin{infobox}[Contribution Review]
+All implementations, experiments, revisions, and project updates were
+reviewed collaboratively by the entire team.
+\end{infobox}
+
+% =====================================================================
+% ISSUE 1
+% =====================================================================
+
+\section*{Issue \#1 -- Helper Modules and Utilities}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{
+  >{\RaggedRight\arraybackslash}p{1.4cm}
+  >{\RaggedRight\arraybackslash}p{8cm}
+  >{\RaggedRight\arraybackslash}p{3.5cm}
+}
+\toprule
+\textbf{Issue}
+& \textbf{Description and Files}
+& \textbf{Contributor} \\
+\midrule
+
+\#2
+& Custom Metrics (\texttt{evaluation.py})
+& Ferman \\
+
+\#3
+& Preprocessing (\texttt{preprocessing.py})
+& Bayram \\
+
+\#37
+& Unsupervised Helper (\texttt{unsupervised.py})
+& Murad \\
+
+\midrule
+
+\multicolumn{2}{l}{\textbf{Main Issue Contributors}}
+& Bayram, Ferman, Murad, Mahmud \\
+
+\multicolumn{2}{l}{\textbf{Review}}
+& Entire Team \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+% ISSUE 4
+% =====================================================================
+
+\section*{Issue \#4 -- Implementation of Supervised Learning Models}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{
+  >{\RaggedRight\arraybackslash}p{1.4cm}
+  >{\RaggedRight\arraybackslash}p{8cm}
+  >{\RaggedRight\arraybackslash}p{3.5cm}
+}
+\toprule
+\textbf{Issue}
+& \textbf{Description and Files}
+& \textbf{Contributor} \\
+\midrule
+
+\#5
+& Decision Tree (\texttt{decision\_tree.py})
+& Ferman \\
+
+\#6
+& Random Forest (\texttt{random\_forest.py})
+& Mahmud \\
+
+\#7
+& AdaBoost (\texttt{adaboost.py})
+& Bayram \\
+
+\midrule
+
+\multicolumn{2}{l}{\textbf{Main Issue Contributors}}
+& Bayram, Ferman, Mahmud \\
+
+\multicolumn{2}{l}{\textbf{Review}}
+& Entire Team \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+% ISSUE 8
+% =====================================================================
+
+\section*{Issue \#8 -- Implementation of Unsupervised Learning Models}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{
+  >{\RaggedRight\arraybackslash}p{1.4cm}
+  >{\RaggedRight\arraybackslash}p{8cm}
+  >{\RaggedRight\arraybackslash}p{3.5cm}
+}
+\toprule
+\textbf{Issue}
+& \textbf{Description and Files}
+& \textbf{Contributor} \\
+\midrule
+
+\#9
+& K-Means (\texttt{kmeans.py})
+& Murad \\
+
+\#10
+& PCA (\texttt{pca.py})
+& Murad \\
+
+\#11
+& DBSCAN (\texttt{dbscan.py})
+& Murad \\
+
+\midrule
+
+\multicolumn{2}{l}{\textbf{Main Issue Contributor}}
+& Murad \\
+
+\multicolumn{2}{l}{\textbf{Review}}
+& Entire Team \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+% ISSUE 12
+% =====================================================================
+
+\section*{Issue \#12 -- Experiments}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{
+  >{\RaggedRight\arraybackslash}p{1.2cm}
+  >{\RaggedRight\arraybackslash}p{9.1cm}
+  >{\RaggedRight\arraybackslash}p{2.7cm}
+}
+\toprule
+\textbf{Issue}
+& \textbf{Description and Files}
+& \textbf{Contributor} \\
+\midrule
+
+\#13
+& Baseline
+  (\texttt{experiments\_baseline.ipynb},
+  \texttt{experiments\_baseline.py})
+& Ferman \\
+
+\#14
+& AdaBoost Scaling
+  (\texttt{adaboost\_scaling\_experiments\_utils.py},
+  \texttt{adaboost\_scaling.ipynb})
+& Bayram \\
+
+\#15
+& Random Forest Scaling
+  (\texttt{random\_forest\_scaling.ipynb},
+  \texttt{random\_forest.py},
+  \texttt{decision\_tree.py})
+& Mahmud \\
+
+\#16
+& Head-to-Head Comparison
+  (\texttt{head-to-head\_5-Fold-CV.ipynb},
+  \texttt{experiments\_head\_to\_head.py})
+& Ferman \\
+
+\#17
+& Noise Robustness
+  (\texttt{noise\_robustness.ipynb},
+  \texttt{noise\_helper.py})
+& Bayram \\
+
+\#18
+& Bias-Variance Decomposition
+  (\texttt{bias\_variance\_decomposition.ipynb},
+  \texttt{bias\_variance\_helper.py})
+& Murad \\
+
+\#19
+& Unsupervised Analysis
+  (\texttt{unsupervised\_analysis.ipynb},
+  \texttt{unsupervised\_helper.py})
+& Murad \\
+
+\midrule
+
+\multicolumn{2}{l}{\textbf{Main Issue Contributors}}
+& Bayram, Ferman, Murad, Mahmud \\
+
+\multicolumn{2}{l}{\textbf{Review}}
+& Entire Team \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+% ISSUE 20
+% =====================================================================
+
+\section*{Issue \#20 -- Revision}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{
+  >{\RaggedRight\arraybackslash}p{1.4cm}
+  >{\RaggedRight\arraybackslash}p{8cm}
+  >{\RaggedRight\arraybackslash}p{3.5cm}
+}
+\toprule
+\textbf{Issue}
+& \textbf{Description and Files}
+& \textbf{Contributor} \\
+\midrule
+
+\#21
+& Final Report
+& Entire Team \\
+
+\#22
+& Contribution Statement
+  (\texttt{contribution\_report.tex})
+& Murad \\
+
+\#23
+& Final Presentation
+& Entire Team \\
+
+\midrule
+
+\multicolumn{2}{l}{\textbf{Main Issue Contributors}}
+& Bayram, Ferman, Murad, Mahmud \\
+
+\multicolumn{2}{l}{\textbf{Review}}
+& Entire Team \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+% ISSUE 24
+% =====================================================================
+
+\section*{Issue \#24 -- Bonus}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{
+  >{\RaggedRight\arraybackslash}p{1.4cm}
+  >{\RaggedRight\arraybackslash}p{8cm}
+  >{\RaggedRight\arraybackslash}p{3.5cm}
+}
+\toprule
+\textbf{Issue}
+& \textbf{Description and Files}
+& \textbf{Contributor} \\
+\midrule
+
+\#25
+& Continuous Integration Initial Setup
+  (\texttt{CI.yml})
+& Ferman \\
+
+\#27
+& t-SNE
+  (\texttt{EDA\_of\_four\_datasets.ipynb})
+& Bayram \\
+
+\#28
+& Multiclass AdaBoost
+  (\texttt{adaboost.py})
+& Murad \\
+
+\midrule
+
+\multicolumn{2}{l}{\textbf{Main Issue Contributors}}
+& Bayram, Ferman, Murad \\
+
+\multicolumn{2}{l}{\textbf{Review}}
+& Entire Team \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+% FINAL CONTRIBUTION STATEMENT
+% =====================================================================
+
+\section*{Final Contribution Statement}
+
+The project was completed collaboratively by the members of
+\textbf{\teamname}: \textbf{Murad, Bayram, Ferman, and Mahmud}.
+
+Each team member was responsible for specific implementation,
+experimentation, documentation, or revision tasks. All major changes,
+experimental results, source-code updates, and final deliverables were
+reviewed collectively by the entire team.
+
+\end{document}
